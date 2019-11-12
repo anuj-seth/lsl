@@ -1,12 +1,22 @@
-(ns lsl.macro)
+(ns lsl.macro
+  (:require [clojure.string :as string]))
 
 (defmulti parse #(subs %1 0 4))
 
 
+;; i cannot directly use in-arg# in defmethod
+;; since auto-gensyms are not part of syntax unquote
 (defmacro defmapping
   [mapping-name mapping-type & body]
-  `(defmethod parse ~mapping-type
-     [line#]))
+  (let [tp (keyword (string/lower-case
+                     mapping-type))
+        in-arg (gensym)]
+    `(defmethod parse ~mapping-type
+       [~in-arg]
+       ~(merge {:type `~tp}
+               (into {}
+                     (for [[s# e# k#] body]
+                       [(keyword k#) `(subs ~in-arg ~s# ~e#)]))))))
 
 (macroexpand-1
  '(defmapping service-call "SVCL"
@@ -23,11 +33,11 @@
    :call-type-code (subs line 24 27)
    :date-of-call-string (subs line 28 35)})
 
-;; (defmapping service-call "SVCL"
-;;     (04 18 customer-name)
-;;     (19 23 customer-id)
-;;     (24 27 call-type-code)
-;;     (28 35 date-of-call-string))
+(defmapping service-call "SVCL"
+    (04 18 customer-name)
+    (19 23 customer-id)
+    (24 27 call-type-code)
+    (28 35 date-of-call-string))
 
 ;; (defmapping usage "USGE"
 ;;     (04 08 customer-id)

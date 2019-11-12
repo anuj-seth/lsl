@@ -77,7 +77,7 @@
   (eval '(+ x 2)))
 
 ;; the eval will be executed at macro compile time
-;; so that my macro will always return 3
+;; so that my macro will always return 7
 (macroexpand-1 '(hello))
 
 (binding [x 7]
@@ -93,6 +93,8 @@
   `(map #(* % %)
         ~xs))
 
+(macroexpand-1 '(squares [1  2]))
+
 (defmacro squares-namespace-qualified-x
   [xs]
   `(map (fn [x]
@@ -100,7 +102,7 @@
         ~xs))
 
 ;; throws error
-;; (macroexpand-1 '(squares-namespace-qualified-x [1 2 3]))
+(macroexpand-1 '(squares-namespace-qualified-x [1 2 3]))
 
 (defmacro squares-non-qualified
   [xs]
@@ -214,7 +216,7 @@
 (defmacro inspect-caller-locals
   [expr]
   (->> (keys &env)
-       (map (fn [k] [`~'k k]))
+       (map (fn [k] [`'~k k]))
        (into {})))
 
 (let [foo "foo" bar "bar"]
@@ -233,3 +235,80 @@
 
 (let [x  2]
   (envv))
+
+
+;; quoting 101
+;; quote ' returns form without evaluating
+
+;; syntax quote evaluates symbols
+;; syntax quote is a reader feature i.e. the first step when a clojure program
+;; is read from file/console
+`(1 2 3)
+;; => (1 2 3)
+
+`(foo bar)
+;; => (user/foo user/bar)
+
+;; case 1: namespace qualify y => user/y
+;; case 2: namespace qualify y due to outer backtick, quote due to inner => (quote user/y)
+;; case 3: outer backtick namespace qualifies y, inner quote/unquote have nothing to do in case of namespace qualified symbol
+;; case 4: 
+(let [x 9, y '(- x)]
+  (println "1 " `y)
+  (println "2 " ``y)
+  (println "3 " ``~y)
+  (println "4 " ``~~y))
+
+(macroexpand-1 ``~y)
+
+;; yeh nahi samajh aa raha
+''(a b)
+(eval '`(a b))
+'~@a
+'~'a
+;; explain this 
+(eval '`(+ ~@'(1 2 3)))
+;; => (clojure.core/seq (clojure.core/concat (clojure.core/list (quote clojure.core/+)) (quote (1 2 3))))
+;; syntax quote provides an escape hatch
+;; the unquote symbol ~
+;; this causes the form to be evaluated in the enclosing context
+
+;; syntax quote/unquote can be applied to any expression
+`[:a ~(+ 1 1) c]
+
+;; => [:a 2 user/c]
+;; if you want the c non-namespace
+`[:a ~(+ 1 1) ~'c]
+;; this works because if any unquote returns a symbol
+;; that symbol will not be namespace qualified
+
+`[:a ~(+ 1 1) 'c]
+
+`[:a ~(+ 1 1) `c]
+;; => [:a 2 (quote user/c)]
+;; the symbol c gets namespace qualified due to the outer backtick and
+;; quoted due to the inner
+
+
+`[:a ~(+ 1 1) ~`c]
+;; => [:a 2 lsl.core/c]
+
+`[:a ~(+ 1 1) 'c]
+;; =>  [:a 2 (quote lsl.core/c)]
+
+'(1 ~x 2)
+
+;; how do you explain this ?
+(def x 1)
+'`~x
+;; => x
+;; NOTE: syntax quote is a reader feature so it gets analyzed/resolved before the quote
+;; the part - `~x will return the non-namespace qualified symbol x
+;; the quote ' prevents it from being evaluated at all -even though x is
+;; defined in the enclsing namespace
+
+`'~x
+;; => (quote 1)
+
+
+`~x
