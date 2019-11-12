@@ -54,5 +54,31 @@
 ((join-join-2 "x") "y")
 
 
-;; write a macro that takes a string as input
-;; and returns a function of one string arg that joins the two
+;; write a macro that takes a even number of args
+;; and returns a hash map after keyword'izing pairs
+(defmacro make-map
+  [& kvs]
+  `(hash-map :type :hello
+             ~@(map (fn [[k v]]
+                      [(keyword k) (keyword v)])
+                    (partition 2 kvs))))
+
+(macroexpand-1 '(make-map "x" "1"))
+
+
+(defmacro make-map-2
+  [& kvs]
+  `(into {}
+    ~(map (fn [[k v]]
+             [(keyword k) (keyword v)])
+           (partition 2 kvs))))
+
+(macroexpand-1 '(make-map-2 "x" "1"))
+
+(make-map-2 "x" "1")
+
+
+
+
+
+

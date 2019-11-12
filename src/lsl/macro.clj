@@ -18,6 +18,17 @@
                      (for [[s# e# k#] body]
                        [(keyword k#) `(subs ~in-arg ~s# ~e#)]))))))
 
+(defmacro defmapping-2
+  [mapping-name mapping-type & body]
+  (let [tp (keyword (string/lower-case
+                     mapping-type))
+        in-arg (gensym)]
+    `(defmethod parse ~mapping-type
+       [~in-arg]
+       {:type ~tp
+        ~(for [[s# e# k#] body]
+           [(keyword k#) `(subs ~in-arg ~s# ~e#)])})))
+
 (macroexpand-1
  '(defmapping service-call "SVCL"
     (04 18 customer-name)
